@@ -1,45 +1,42 @@
-// db.js — o "banco" e o proprio db.json. Leitura sincrona + fila de escrita simples.
-// Observacao: leitura+escrita nao e atomica entre requisicoes simultaneas — ok pra
-// escala de demo/projeto pessoal, nao pra alta concorrencia real.
+cat > /home/claude/mastand/server/db.js << 'ENDOFFILE'
+// db.js — o "banco" agora mora no MongoDB Atlas (gratis pra sempre), nao mais num
+// arquivo local. A FORMA dos dados continua igual: um objeto com users/groups/posts/status —
+// so o lugar onde ele mora que mudou. Por isso o resto do server.js quase nao muda.
 
-const fs = require('fs');
-const path = require('path');
+const { MongoClient } = require('mongodb');
 
-const DB_PATH = path.join(__dirname, 'db.json');
+const uri = process.env.MONGODB_URI;
+if (!uri) console.error('Faltou configurar a variavel MONGODB_URI no Render (aba Environment).');
+
+const client = new MongoClient(uri);
+let colPromise = null;
+
+function getCollection() {
+  if (!colPromise) {
+    colPromise = client.connect().then(() => client.db('mastand').collection('estado'));
+  }
+  return colPromise;
+}
+
 const EMPTY = { users: [], groups: [], posts: [], status: [] };
 
-function readDB() {
-  if (!fs.existsSync(DB_PATH)) {
-    fs.writeFileSync(DB_PATH, JSON.stringify(EMPTY, null, 2));
+async function readDB() {
+  const col = await getCollection();
+  const doc = await col.findOne({ _id: 'principal' });
+  if (!doc) {
+    await col.insertOne({ _id: 'principal', ...EMPTY });
     return { ...EMPTY };
   }
-  const raw = fs.readFileSync(DB_PATH, 'utf-8');
-  return raw ? JSON.parse(raw) : { ...EMPTY };
+  const { _id, ...data } = doc;
+  return data;
 }
 
-let writing = false;
-const queue = [];
-
-function writeDB(data) {
-  return new Promise((resolve, reject) => {
-    queue.push({ data, resolve, reject });
-    processQueue();
-  });
-}
-
-function processQueue() {
-  if (writing || queue.length === 0) return;
-  writing = true;
-  const { data, resolve, reject } = queue.shift();
-  try {
-    fs.writeFileSync(DB_PATH, JSON.stringify(data, null, 2));
-    resolve(data);
-  } catch (err) {
-    reject(err);
-  } finally {
-    writing = false;
-    processQueue();
-  }
+async function writeDB(data) {
+  const col = await getCollection();
+  await col.replaceOne({ _id: 'principal' }, { _id: 'principal', ...data }, { upsert: true });
+  return data;
 }
 
 module.exports = { readDB, writeDB };
+ENDOFFILE
+echo "db.js atualizado"
