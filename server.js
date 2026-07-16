@@ -43,7 +43,9 @@ app.post('/api/register', async (req, res) => {
   if (!MAKEY_REGEX.test(makey)) {
     return res.status(400).json({ error: 'Makey invalida: use so A-Z e _ - . @, sem numeros' });
   }
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   if (db.users.some(u => u.makey === makey)) return res.status(409).json({ error: 'Makey ja existe' });
   if (db.users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
     return res.status(409).json({ error: 'nome de usuario ja existe' });
@@ -62,7 +64,9 @@ app.post('/api/register', async (req, res) => {
 
 app.post('/api/login', async (req, res) => {
   const { identifier, password } = req.body; // identifier = username OU makey
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const user = db.users.find(u =>
     u.makey === identifier || u.username.toLowerCase() === String(identifier || '').toLowerCase()
   );
@@ -75,14 +79,17 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ---------- Perfil ----------
-app.get('/api/me', auth, (req, res) => {
-  const db = readDB();
+// CORRIGIDO: adicionado async
+app.get('/api/me', auth, async (req, res) => {
+  const db = await readDB(); // CORRIGIDO
   res.json(publicUser(db.users.find(u => u.makey === req.makey)));
 });
 
 app.post('/api/profile', auth, async (req, res) => {
   const { bio, avatar, newMakey } = req.body;
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const user = db.users.find(u => u.makey === req.makey);
   if (!user) return res.status(404).json({ error: 'usuario nao encontrado' });
   if (newMakey && newMakey !== user.makey) {
@@ -98,17 +105,21 @@ app.post('/api/profile', auth, async (req, res) => {
 });
 
 // ---------- Busca (por Makey ou Nametag) ----------
-app.get('/api/search', (req, res) => {
+// CORRIGIDO: adicionado async
+app.get('/api/search', async (req, res) => {
   const q = (req.query.q || '').toLowerCase();
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   res.json(
     db.users.filter(u => u.makey.toLowerCase().includes(q) || u.username.toLowerCase().includes(q))
       .map(publicUser)
   );
 });
 
-app.get('/api/user/:makey', (req, res) => {
-  const db = readDB();
+// CORRIGIDO: adicionado async
+app.get('/api/user/:makey', async (req, res) => {
+  const db = await readDB(); // CORRIGIDO
   const user = db.users.find(u => u.makey === req.params.makey);
   if (!user) return res.status(404).json({ error: 'nao encontrado' });
   res.json(publicUser(user));
@@ -137,7 +148,9 @@ app.get('/api/online', (req, res) => res.json(Array.from(online.keys())));
 app.post('/api/groups', auth, async (req, res) => {
   const { name, parentGroupId } = req.body;
   if (!name) return res.status(400).json({ error: 'nome obrigatorio' });
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const group = {
     id: uuidv4(), name: moders.cleanText(name), parentGroupId: parentGroupId || null,
     admins: [req.makey], members: [req.makey],
@@ -149,13 +162,14 @@ app.post('/api/groups', auth, async (req, res) => {
   res.json(group);
 });
 
-app.get('/api/groups/mine', auth, (req, res) => {
-  const db = readDB();
+// CORRIGIDO: adicionado async
+app.get('/api/groups/mine', auth, async (req, res) => {
+  const db = await readDB(); // CORRIGIDO
   res.json(db.groups.filter(g => g.members.includes(req.makey)));
 });
 
 app.post('/api/groups/:id/join', auth, async (req, res) => {
-  const db = readDB();
+  const db = await readDB(); // CORRIGIDO
   const group = db.groups.find(g => g.id === req.params.id);
   if (!group) return res.status(404).json({ error: 'grupo nao encontrado' });
   if (!group.members.includes(req.makey)) group.members.push(req.makey);
@@ -164,7 +178,7 @@ app.post('/api/groups/:id/join', auth, async (req, res) => {
 });
 
 app.post('/api/groups/:id/leave', auth, async (req, res) => {
-  const db = readDB();
+  const db = await readDB(); // CORRIGIDO
   const group = db.groups.find(g => g.id === req.params.id);
   if (!group) return res.status(404).json({ error: 'grupo nao encontrado' });
   group.members = group.members.filter(m => m !== req.makey);
@@ -173,7 +187,7 @@ app.post('/api/groups/:id/leave', auth, async (req, res) => {
 });
 
 app.post('/api/groups/:id/mabot', auth, async (req, res) => {
-  const db = readDB();
+  const db = await readDB(); // CORRIGIDO
   const group = db.groups.find(g => g.id === req.params.id);
   if (!group) return res.status(404).json({ error: 'grupo nao encontrado' });
   if (!group.admins.includes(req.makey)) return res.status(403).json({ error: 'so admins configuram o mabot' });
@@ -189,7 +203,7 @@ app.post('/api/groups/:id/mabot', auth, async (req, res) => {
 // Usado tanto por um admin manualmente quanto pelo mini-mabot (viaMabot: true) rodando
 // no cliente de quem detectou a violacao — ver public/js/groups.js.
 app.post('/api/groups/:id/kick', auth, async (req, res) => {
-  const db = readDB();
+  const db = await readDB(); // CORRIGIDO
   const group = db.groups.find(g => g.id === req.params.id);
   if (!group) return res.status(404).json({ error: 'grupo nao encontrado' });
   const { targetMakey, viaMabot } = req.body;
@@ -203,7 +217,9 @@ app.post('/api/groups/:id/kick', auth, async (req, res) => {
 
 app.post('/api/groups/:id/folder', auth, async (req, res) => {
   const { folder } = req.body;
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const user = db.users.find(u => u.makey === req.makey);
   user.groupFolders[req.params.id] = folder;
   await writeDB(db);
@@ -214,7 +230,9 @@ app.post('/api/groups/:id/folder', auth, async (req, res) => {
 app.post('/api/posts', auth, async (req, res) => {
   const { type, media, caption, reel } = req.body;
   if (moders.containsBadWords(caption || '')) return res.status(400).json({ error: 'legenda contem termos bloqueados' });
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const post = {
     id: uuidv4(), authorMakey: req.makey, type, media, caption: moders.cleanText(caption || ''),
     reel: !!reel, likes: [], comments: [], createdAt: Date.now()
@@ -224,13 +242,14 @@ app.post('/api/posts', auth, async (req, res) => {
   res.json(post);
 });
 
-app.get('/api/posts', (req, res) => {
-  const db = readDB();
+// CORRIGIDO: adicionado async
+app.get('/api/posts', async (req, res) => {
+  const db = await readDB(); // CORRIGIDO
   res.json(db.posts.slice().reverse());
 });
 
 app.post('/api/posts/:id/like', auth, async (req, res) => {
-  const db = readDB();
+  const db = await readDB(); // CORRIGIDO
   const post = db.posts.find(p => p.id === req.params.id);
   if (!post) return res.status(404).json({ error: 'post nao encontrado' });
   post.likes = post.likes.includes(req.makey) ? post.likes.filter(m => m !== req.makey) : [...post.likes, req.makey];
@@ -241,7 +260,9 @@ app.post('/api/posts/:id/like', auth, async (req, res) => {
 app.post('/api/posts/:id/comment', auth, async (req, res) => {
   const { text } = req.body;
   if (moders.containsBadWords(text || '')) return res.status(400).json({ error: 'comentario bloqueado' });
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const post = db.posts.find(p => p.id === req.params.id);
   if (!post) return res.status(404).json({ error: 'post nao encontrado' });
   post.comments.push({ authorMakey: req.makey, text: moders.cleanText(text), createdAt: Date.now() });
@@ -249,8 +270,9 @@ app.post('/api/posts/:id/comment', auth, async (req, res) => {
   res.json(post);
 });
 
-app.get('/api/suggestions', auth, (req, res) => {
-  const db = readDB();
+// CORRIGIDO: adicionado async
+app.get('/api/suggestions', auth, async (req, res) => {
+  const db = await readDB(); // CORRIGIDO
   const others = db.users.filter(u => u.makey !== req.makey).map(publicUser);
   res.json(others.sort(() => Math.random() - 0.5).slice(0, 8));
 });
@@ -260,18 +282,24 @@ const STATUS_TTL = 24 * 60 * 60 * 1000;
 
 app.post('/api/status', auth, async (req, res) => {
   const { type, media, text } = req.body;
-  const db = readDB();
+  
+  const db = await readDB(); // CORRIGIDO
+  
   const entry = { id: uuidv4(), authorMakey: req.makey, type, media, text: moders.cleanText(text || ''), createdAt: Date.now() };
   db.status.push(entry);
   await writeDB(db);
   res.json(entry);
 });
 
-app.get('/api/status', (req, res) => {
-  const db = readDB();
+// CORRIGIDO: adicionado async
+app.get('/api/status', async (req, res) => {
+  const db = await readDB(); // CORRIGIDO
   const now = Date.now();
   const active = db.status.filter(s => now - s.createdAt < STATUS_TTL);
-  if (active.length !== db.status.length) { db.status = active; writeDB(db); }
+  if (active.length !== db.status.length) { 
+    db.status = active; 
+    await writeDB(db); // CORRIGIDO: Adicionado await no writeDB aqui também!
+  }
   res.json(active);
 });
 
