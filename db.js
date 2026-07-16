@@ -37,5 +37,3 @@ async function writeDB(data) {
 }
 
 module.exports = { readDB, writeDB };
-ENDOFFILE
-echo "db.js atualizado"
