@@ -1,0 +1,18 @@
+{
+  "name": "mastand-server",
+  "version": "1.0.0",
+  "description": "Backend do Mastand: contas, presenca em tempo real, busca, grupos, Mafeed, status e sinalizacao PeerJS.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "peer": "^1.0.2",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "bad-words": "^3.0.4",
+    "uuid": "^9.0.1"
+  }
+}
