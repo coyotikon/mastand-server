@@ -1,4 +1,3 @@
-cat > /home/claude/mastand/server/db.js << 'ENDOFFILE'
 // db.js — o "banco" agora mora no MongoDB Atlas (gratis pra sempre), nao mais num
 // arquivo local. A FORMA dos dados continua igual: um objeto com users/groups/posts/status —
 // so o lugar onde ele mora que mudou. Por isso o resto do server.js quase nao muda.
